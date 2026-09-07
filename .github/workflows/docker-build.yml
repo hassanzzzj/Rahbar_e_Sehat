@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build backend production image
         run: docker build -t rahbar-backend:test -f backend/Dockerfile backend/
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build frontend production image
         run: docker build -t rahbar-frontend:test -f frontend/Dockerfile frontend/
