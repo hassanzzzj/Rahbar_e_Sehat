@@ -23,7 +23,7 @@ jobs:
         working-directory: ./backend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,7 +44,7 @@ jobs:
         working-directory: ./frontend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -63,7 +63,7 @@ jobs:
     needs: [python-audit, npm-audit]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build backend image
         run: docker build -t rahbar-backend:scan -f backend/Dockerfile backend/
