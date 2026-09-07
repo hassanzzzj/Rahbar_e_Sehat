@@ -5,7 +5,7 @@
 # =============================================================================
 # Stage 1: Build dependencies
 # =============================================================================
-FROM python:3.11-slim as builder
+FROM python:3.14-slim as builder
 
 WORKDIR /build
 
@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # =============================================================================
 # Stage 2: Application
 # =============================================================================
-FROM python:3.11-slim as runtime
+FROM python:3.14-slim as runtime
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
