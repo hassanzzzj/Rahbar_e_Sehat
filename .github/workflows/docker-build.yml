@@ -1,0 +1,51 @@
+# Docker Build Validation
+# Ensures both Docker images build successfully on every PR
+
+name: Docker Build
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "docker-compose*.yml"
+
+jobs:
+  build-backend:
+    name: Build Backend Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend production image
+        run: docker build -t rahbar-backend:test -f backend/Dockerfile backend/
+
+      - name: Verify image runs
+        run: |
+          docker run -d --name backend-test -p 8000:8000 \
+            -e SECRET_KEY=test-secret-key-that-is-32-bytes \
+            -e DATABASE_URL=postgresql://localhost/test \
+            -e ALIBABA_CLOUD_ACCESS_KEY_ID=test \
+            -e ALIBABA_CLOUD_ACCESS_KEY_SECRET=test \
+            -e QWEN_API_KEY=test \
+            -e SPEECH_APP_KEY=test \
+            -e WHATSAPP_API_TOKEN=test \
+            -e WHATSAPP_PHONE_NUMBER_ID=test \
+            -e WHATSAPP_VERIFY_TOKEN=test \
+            -e ENCRYPTION_KEY=test-encryption-key-32-bytes-long \
+            -e JWT_SECRET_KEY=test-jwt-secret-key-32-bytes-long \
+            rahbar-backend:test
+          sleep 5
+          docker logs backend-test
+
+  build-frontend:
+    name: Build Frontend Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build frontend production image
+        run: docker build -t rahbar-frontend:test -f frontend/Dockerfile frontend/

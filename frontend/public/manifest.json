@@ -1,0 +1,33 @@
+{
+  "name": "Rahbar-e-Sehat",
+  "short_name": "Rahbar",
+  "description": "Har Bemaar Ka Sahi Rasta — Autonomous healthcare triage and referral system for Pakistan.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAFA",
+  "theme_color": "#2F4C3E",
+  "orientation": "any",
+  "lang": "ur",
+  "dir": "ltr",
+  "categories": ["health", "medical"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+[
+  {
+    "facility_id": "PK-LHR-BHU-001",
+    "name": "Model Town Basic Health Unit",
+    "facility_type": "BHU",
+    "address": "Block C, Model Town, Lahore, Punjab",
+    "latitude": 31.4832,
+    "longitude": 74.3408,
+    "services": ["general_consultation", "vaccination", "maternal_health", "basic_lab"],
+    "emergency_capable": false,
+    "phone_number": "+92-42-1110001"
+  },
+  {
+    "facility_id": "PK-LHR-RHC-001",
+    "name": "Iqbal Town Rural Health Centre",
+    "facility_type": "RHC",
+    "address": "Main Boulevard, Iqbal Town, Lahore, Punjab",
+    "latitude": 31.4697,
+    "longitude": 74.3549,
+    "services": ["general_consultation", "vaccination", "maternal_health", "pediatric", "basic_lab", "x_ray"],
+    "emergency_capable": false,
+    "phone_number": "+92-42-1110002"
+  },
+  {
+    "facility_id": "PK-LHR-THQ-001",
+    "name": "Shalimar THQ Hospital",
+    "facility_type": "THQ",
+    "address": "GT Road, Shalimar, Lahore, Punjab",
+    "latitude": 31.5880,
+    "longitude": 74.3873,
+    "services": ["general_consultation", "emergency", "surgery_minor", "maternal_health", "pediatric", "lab", "pharmacy", "x_ray"],
+    "emergency_capable": true,
+    "phone_number": "+92-42-1110003"
+  },
+  {
+    "facility_id": "PK-LHR-DHQ-001",
+    "name": "District Headquarters Hospital Lahore",
+    "facility_type": "DHQ",
+    "address": "Ferozepur Road, Lahore, Punjab",
+    "latitude": 31.5204,
+    "longitude": 74.3587,
+    "services": ["general_consultation", "emergency", "surgery", "maternal_health", "pediatric", "cardiology", "orthopedics", "lab", "pharmacy", "blood_bank", "icu"],
+    "emergency_capable": true,
+    "phone_number": "+92-42-1110004"
+  },
+  {
+    "facility_id": "PK-LHR-TER-001",
+    "name": "Jinnah Hospital Lahore",
+    "facility_type": "TERTIARY",
+    "address": "Canal Bank Road, Lahore, Punjab",
+    "latitude": 31.5325,
+    "longitude": 74.3480,
+    "services": ["general_consultation", "emergency", "surgery", "cardiology", "neurology", "oncology", "nephrology", "pediatric", "maternal_health", "lab", "pharmacy", "blood_bank", "icu", "nicu"],
+    "emergency_capable": true,
+    "phone_number": "+92-42-1110005"
+  },
+  {
+    "facility_id": "PK-LHR-EMR-001",
+    "name": "Lahore General Hospital Emergency",
+    "facility_type": "EMERGENCY",
+    "address": "Ferozepur Road, Lahore, Punjab",
+    "latitude": 31.5240,
+    "longitude": 74.3590,
+    "services": ["emergency", "trauma", "burn_unit", "icu", "surgery", "blood_bank"],
+    "emergency_capable": true,
+    "phone_number": "+92-42-1110006"
+  },
+  {
+    "facility_id": "PK-ISB-BHU-001",
+    "name": "G-9 Markaz Basic Health Unit",
+    "facility_type": "BHU",
+    "address": "Street 20, G-9/4, Islamabad",
+    "latitude": 33.6844,
+    "longitude": 73.0479,
+    "services": ["general_consultation", "vaccination", "maternal_health", "basic_lab"],
+    "emergency_capable": false,
+    "phone_number": "+92-51-1110001"
+  },
+  {
+    "facility_id": "PK-ISB-RHC-001",
+    "name": "Bharakahu Rural Health Centre",
+    "facility_type": "RHC",
+    "address": "Main Road, Bharakahu, Islamabad",
+    "latitude": 33.7230,
+    "longitude": 73.1120,
+    "services": ["general_consultation", "vaccination", "maternal_health", "pediatric", "basic_lab"],
+    "emergency_capable": false,
+    "phone_number": "+92-51-1110002"
+  },
+  {
+    "facility_id": "PK-ISB-THQ-001",
+    "name": "Tarlai THQ Hospital",
+    "facility_type": "THQ",
+    "address": "Tarlai Kalan, Islamabad",
+    "latitude": 33.6510,
+    "longitude": 73.1240,
+    "services": ["general_consultation", "emergency", "surgery_minor", "maternal_health", "pediatric", "lab", "pharmacy"],
+    "emergency_capable": true,
+    "phone_number": "+92-51-1110003"
+  },
+  {
+    "facility_id": "PK-ISB-DHQ-001",
+    "name": "Pakistan Institute of Medical Sciences",
+    "facility_type": "DHQ",
+    "address": "G-8/3, Islamabad",
+    "latitude": 33.7080,
+    "longitude": 73.0690,
+    "services": ["general_consultation", "emergency", "surgery", "cardiology", "neurology", "pediatric", "maternal_health", "lab", "pharmacy", "blood_bank", "icu"],
+    "emergency_capable": true,
+    "phone_number": "+92-51-1110004"
+  },
+  {
+    "facility_id": "PK-ISB-TER-001",
+    "name": "Shifa International Hospital",
+    "facility_type": "TERTIARY",
+    "address": "Sector H-8/4, Islamabad",
+    "latitude": 33.6990,
+    "longitude": 73.0460,
+    "services": ["general_consultation", "emergency", "surgery", "cardiology", "neurology", "oncology", "pediatric", "maternal_health", "lab", "pharmacy", "blood_bank", "icu", "transplant"],
+    "emergency_capable": true,
+    "phone_number": "+92-51-1110005"
+  },
+  {
+    "facility_id": "PK-KHI-BHU-001",
+    "name": "Gulshan-e-Iqbal Basic Health Unit",
+    "facility_type": "BHU",
+    "address": "Block 4, Gulshan-e-Iqbal, Karachi, Sindh",
+    "latitude": 24.9210,
+    "longitude": 67.0900,
+    "services": ["general_consultation", "vaccination", "maternal_health", "basic_lab"],
+    "emergency_capable": false,
+    "phone_number": "+92-21-1110001"
+  },
+  {
+    "facility_id": "PK-KHI-THQ-001",
+    "name": "Liaquatabad THQ Hospital",
+    "facility_type": "THQ",
+    "address": "Liaquatabad, Karachi, Sindh",
+    "latitude": 24.8950,
+    "longitude": 67.0520,
+    "services": ["general_consultation", "emergency", "surgery_minor", "maternal_health", "pediatric", "lab", "pharmacy"],
+    "emergency_capable": true,
+    "phone_number": "+92-21-1110003"
+  },
+  {
+    "facility_id": "PK-KHI-DHQ-001",
+    "name": "Civil Hospital Karachi",
+    "facility_type": "DHQ",
+    "address": "Mission Road, Karachi, Sindh",
+    "latitude": 24.8600,
+    "longitude": 67.0100,
+    "services": ["general_consultation", "emergency", "surgery", "cardiology", "pediatric", "maternal_health", "lab", "pharmacy", "blood_bank", "icu"],
+    "emergency_capable": true,
+    "phone_number": "+92-21-1110004"
+  },
+  {
+    "facility_id": "PK-KHI-TER-001",
+    "name": "Aga Khan University Hospital",
+    "facility_type": "TERTIARY",
+    "address": "Stadium Road, Karachi, Sindh",
+    "latitude": 24.8930,
+    "longitude": 67.0750,
+    "services": ["general_consultation", "emergency", "surgery", "cardiology", "neurology", "oncology", "pediatric", "maternal_health", "lab", "pharmacy", "blood_bank", "icu", "transplant"],
+    "emergency_capable": true,
+    "phone_number": "+92-21-1110005"
+  },
+  {
+    "facility_id": "PK-PES-THQ-001",
+    "name": "Hayatabad THQ Hospital",
+    "facility_type": "THQ",
+    "address": "Phase 3, Hayatabad, Peshawar, KPK",
+    "latitude": 33.9750,
+    "longitude": 71.4700,
+    "services": ["general_consultation", "emergency", "surgery_minor", "maternal_health", "pediatric", "lab", "pharmacy"],
+    "emergency_capable": true,
+    "phone_number": "+92-91-1110003"
+  },
+  {
+    "facility_id": "PK-PES-DHQ-001",
+    "name": "Lady Reading Hospital Peshawar",
+    "facility_type": "DHQ",
+    "address": "GT Road, Peshawar, KPK",
+    "latitude": 34.0050,
+    "longitude": 71.5400,
+    "services": ["general_consultation", "emergency", "surgery", "cardiology", "pediatric", "maternal_health", "lab", "pharmacy", "blood_bank", "icu"],
+    "emergency_capable": true,
+    "phone_number": "+92-91-1110004"
+  }
+]

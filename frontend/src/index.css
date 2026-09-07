@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Rahbar-e-Sehat global styles
+   Warm neutral + forest green palette — no purple / blue
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+  font-feature-settings: "cv11", "ss01";
+  font-variant-ligatures: common-ligatures;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  font-family: "Inter Variable", "Inter", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #F9F8F6;
+  color: #1A1815;
+}
+
+/* ── Urdu / RTL typography ────────────────────────────────── */
+[dir="rtl"],
+.urdu {
+  font-family: "Noto Nastaliq Urdu", serif;
+  direction: rtl;
+  line-height: 2;
+  font-size: 1.1rem;
+}
+
+/* ── Headings ─────────────────────────────────────────────── */
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* ── Label / badge text ───────────────────────────────────── */
+.badge,
+.label-uppercase {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+/* ── Card surfaces ────────────────────────────────────────── */
+.surface {
+  background-color: #F2F0EC;
+  border: 1px solid #E5E1DA;
+  border-radius: 12px;
+}
+
+.surface-elevated {
+  background-color: #ffffff;
+  border: 1px solid #E5E1DA;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04);
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+.surface-elevated:hover {
+  box-shadow: 0 4px 12px 0 rgba(0,0,0,0.10), 0 2px 6px -2px rgba(0,0,0,0.06);
+}
+
+/* ── Interactive states ───────────────────────────────────── */
+.interactive {
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease,
+              box-shadow 120ms ease;
+  cursor: pointer;
+}
+.interactive:hover {
+  background-color: #F2F0EC;
+  border-color: #CCC7BC;
+}
+.interactive:active {
+  transform: scale(0.97);
+}
+.interactive:focus-visible {
+  outline: 2px solid #357A53;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.interactive:disabled,
+[disabled].interactive {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Skeleton loader ──────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #F2F0EC 0%,
+    #E5E1DA 50%,
+    #F2F0EC 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+@keyframes skeleton-pulse {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Fade / slide animations ──────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1);   opacity: 1; }
+  50%       { transform: scale(1.5); opacity: 0.6; }
+}
+
+.animate-fade-in  { animation: fadeIn  0.25s ease-out both; }
+.animate-slide-up { animation: slideUp 0.30s ease-out both; }
+
+/* ── Emergency pulse ring ─────────────────────────────────── */
+@keyframes emergencyPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(181, 45, 36, 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(181, 45, 36, 0); }
+}
+.emergency-pulse {
+  animation: emergencyPulse 1.6s ease-in-out infinite;
+}
+
+/* ── Reduce motion ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ── Step connector line ──────────────────────────────────── */
+.step-connector {
+  position: relative;
+}
+.step-connector::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -50%;
+  width: 100%;
+  height: 2px;
+  background: #D7E9DC;
+  transform: translateY(-50%);
+}
+
+/* ── Focus ring for form elements ─────────────────────────── */
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #357A53;
+  outline-offset: 1px;
+}
+
+/* ── Scrollbar (subtle) ───────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #CCC7BC;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover { background: #A8A098; }
+
+/* ── Selection colour ─────────────────────────────────────── */
+::selection {
+  background-color: #B0D2BC;
+  color: #1E4D34;
+}

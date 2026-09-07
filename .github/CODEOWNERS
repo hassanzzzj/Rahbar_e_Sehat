@@ -1,0 +1,20 @@
+# Code Owners
+# These owners will be requested for review when someone opens a pull request
+# that modifies code that they own.
+
+# Security-critical files require mandatory review
+/backend/app/core/security.py @security-team
+/backend/app/agents/safety_escalation_agent.py @security-team
+/backend/app/core/rate_limit.py @security-team
+/backend/app/core/exceptions.py @security-team
+
+# Agent pipeline files
+/backend/app/agents/ @core-team
+
+# Infrastructure and deployment
+/docker-compose*.yml @infra-team
+/infra/ @infra-team
+/.github/workflows/ @infra-team
+
+# Frontend
+/frontend/ @frontend-team
