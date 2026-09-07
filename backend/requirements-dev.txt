@@ -7,7 +7,7 @@ pytest-cov>=4.1,<6
 pytest-mock>=3.12,<4
 ruff==0.1.9
 mypy==1.8.0
-black==23.12.1
+black==26.5.1
 pre-commit==3.6.0
 locust==2.20.1
 types-requests==2.31.0.20240125
