@@ -1,113 +1,129 @@
 # API Reference
 
-All endpoints return the unified envelope:
+The backend mounts its routes under the configured API prefix, which defaults
+to `/api/v1`. Most operational routes return a `{ "success", "data",
+"error" }` envelope. Session creation and session lookup return their
+response schemas directly. Framework-level request validation responses
+may use FastAPI's default format.
 
-```json
-{
-  "success": true,
-  "data": { /* endpoint-specific payload */ },
-  "error": null
-}
-```
-
-On failure:
-
-```json
-{
-  "success": false,
-  "data": null,
-  "error": { "code": "STRING_ERROR_CODE", "message": "Human-readable message" }
-}
-```
-
-Base URL: `https://<host>/api/v1`
+The prototype installs rate-limit middleware, but the registered route set
+does not enforce bearer-token authentication or admin RBAC. Creating a
+session token does not mean the other routes validate it.
 
 ## Health
 
 ### `GET /healthz`
-Liveness check. Returns `{"status": "healthy"}`.
+
+Liveness endpoint. Returns an envelope with `data.status` set to `healthy`.
 
 ### `GET /readyz`
-Readiness check including database, vector store, and LLM service.
+
+Returns `data.status: ready` and fixed `ok` values for database,
+vector-store, and LLM checks. These checks are placeholders; they do not
+probe those dependencies.
 
 ## Triage
 
 ### `POST /triage`
 
-Run the full agent pipeline on a patient message.
+Runs symptom intake, rule-based safety escalation, and, unless an emergency
+is detected, triage reasoning, facility matching, and medicine availability
+in sequence.
 
 **Request body:**
+
 ```json
 {
-  "message": "string, max 1000 chars",
-  "channel": "whatsapp | web | voice",
-  "session_id": "optional — server-generated if omitted",
-  "location": { "latitude": 33.68, "longitude": 73.04 }
+  "patient_message": "string, 1-2000 characters",
+  "phone_number": "optional, 10-15 digits with optional leading +",
+  "location_lat": 33.68,
+  "location_lng": 73.04
 }
 ```
 
-**Response `data`:**
+`phone_number`, `location_lat`, and `location_lng` are optional. Unknown
+request fields are rejected. The server generates a session ID for each
+triage request.
+
+**Response `data` fields:**
+
 ```json
 {
   "session_id": "uuid",
   "is_emergency": false,
-  "red_flags_triggered": [],
-  "urgency": "EMERGENCY | URGENT | ROUTINE | SELF_CARE",
-  "recommended_facility_type": "BHU | RHC | DHQ | THQ | TERTIARY | EMERGENCY",
-  "recommended_facility": { /* Facility object, see below */ },
-  "medicines_available": ["paracetamol", "..."],
-  "justification": "RAG-grounded reasoning trace",
-  "response_urdu": "اردو میں حتمی پیغام",
-  "audio_url": "https://oss/.../response.mp3"
+  "urgency": "EMERGENCY | URGENT | ROUTINE | SELF_CARE | null",
+  "recommended_facility": null,
+  "medicine_status": null,
+  "patient_message_urdu": "string",
+  "audio_url": "optional data:audio/mpeg;base64,...",
+  "reasoning_trace": "optional string"
 }
 ```
 
-**Error codes:**
-- `VALIDATION_ERROR` (400)
-- `AUTH_REQUIRED` (401)
-- `RATE_LIMITED` (429)
-- `TRIAGE_UNAVAILABLE` (503) — safe fallback triggered
+The actual response schema does not expose a `red_flags_triggered` field or
+a separate medicines-available list. Emergency responses have no triage
+classification urgency. `audio_url`, when present, is a base64 data URL, not
+a hosted object URL.
+
+### `GET /triage/{session_id}`
+
+Returns the requested ID and `status: completed` as a placeholder; it does
+not retrieve a persisted triage result.
 
 ## Facilities
 
-### `GET /facilities`
-List facilities, optionally filtered.
+### `POST /facilities/search`
 
-Query parameters:
-- `type` (optional): `BHU | RHC | DHQ | THQ | TERTIARY | EMERGENCY`
-- `near=lat,lng` (optional)
-- `radius_km` (optional, default 50)
-- `limit` (optional, default 20, max 100)
+Searches the bundled facility dataset by required `latitude` and `longitude`,
+with optional filters:
 
-**Response `data`:** array of `Facility` objects.
+- `facility_type`: `BHU | RHC | THQ | DHQ | TERTIARY | EMERGENCY`
+- `max_distance_km`: number from 0.1 to 500; defaults to 50
 
-### `GET /facilities/{id}`
-Single facility detail, including current medicine stock signals.
+The response data contains `facilities`, `total_count`, and
+`search_radius_km`. Results are sorted by distance.
 
-## WhatsApp webhook
+### `GET /facilities/{facility_id}`
 
-### `POST /webhooks/whatsapp`
-Verified webhook endpoint for WhatsApp Business API callbacks.
-- Rate-limited.
-- Input is sanitized before reaching any downstream agent.
-- Returns `200 OK` immediately; processing is asynchronous.
+Returns details for one matching facility. The current response does not
+include live medicine stock.
 
-## Admin (RBAC-protected)
+## Speech
+
+### `POST /transcribe`
+
+Accepts multipart form data with a required audio `file` and optional
+`language` field (ISO 639-1, defaults to `ur`). Transcription uses Groq
+Whisper and returns `data.text` in the response envelope.
+
+## Sessions
+
+### `POST /session/create`
+
+Creates an anonymous session ID and signed JWT, with an expiry. Session
+metadata is stored in process memory and the response is not wrapped in the
+standard API envelope.
+
+### `GET /session/{session_id}`
+
+Returns the in-memory session status directly. Unknown IDs return
+`status: unknown`.
+
+## Admin
+
+### `GET /admin/stats`
+
+Returns placeholder zero-valued statistics; collection is not implemented.
 
 ### `GET /admin/sessions`
-List anonymized triage sessions for clinical review.
 
-### `GET /admin/audit`
-Structured audit log of triage decisions.
+Returns an empty placeholder list. Session listing and PII redaction are
+not implemented. This route is not RBAC-protected in the current code.
 
-## HTTP status codes
+## WhatsApp
 
-| Code | Meaning |
-|------|---------|
-| 400 | Validation failure |
-| 401 | Authentication required |
-| 403 | Insufficient privileges |
-| 404 | Resource not found |
-| 429 | Rate limit exceeded |
-| 500 | Internal server error |
-| 503 | Service unavailable (safe fallback issued) |
+### `POST /webhooks/whatsapp` — Planned, not implemented
+
+There is no registered WhatsApp webhook route in the current application.
+WhatsApp Business API integration is a production roadmap item, not a
+working endpoint.

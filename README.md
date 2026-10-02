@@ -10,64 +10,62 @@
 
 Rahbar-e-Sehat is an autonomous multi-agent AI system that solves patient misrouting in Pakistan's healthcare system. Rather than attempting diagnosis, the system helps patients understand the urgency of their condition and directs them to the correct tier of care (Basic Health Unit, Rural Health Centre, District/Tehsil Headquarters Hospital, or emergency facility).
 
-The system is built as a coordinated network of specialized AI agents, orchestrated through a state-machine architecture (LangGraph), delivered over WhatsApp for zero-install accessibility, and grounded in real clinical protocols and facility data through Retrieval-Augmented Generation (RAG).
+The prototype is a web application with a FastAPI backend and a LangGraph triage workflow. It accepts typed symptoms and recorded voice (transcribed before triage), and uses a small pilot dataset of clinical protocols, facilities, and medicine inventory. It is a decision-support prototype, not a diagnostic service.
 
 ## Architecture
 
 ```
-Patient Input (Urdu Voice/Text via WhatsApp)
+Patient Input (web: typed text or recorded voice)
         │
         ▼
-┌───────────────────────┐
-│ 1. Symptom Intake      │  Extracts structured symptom data
-│    Agent               │  via schema-constrained parsing
-└───────────┬───────────┘
+│ Voice is transcribed by Groq Whisper before triage │
             │
             ▼
-┌───────────────────────┐
-│ 2. Safety Escalation   │  Deterministic rule engine —
-│    Agent (Rule-Based,  │  runs independently of the LLM
-│    Non-LLM)            │  layer; can short-circuit the
-└───────┬───────┬───────┘  entire pipeline
-        │       │
-  RED FLAG   No red flag
-        │       │
-        ▼       ▼
- ┌────────────┐ ┌────────────────────────┐
- │ EMERGENCY  │ │ 3. Triage Reasoning     │
- │ OUTPUT     │ │    Agent (LLM +         │
- │ (Immediate)│ │    Structured Output)   │
- └────────────┘ └───────────┬─────────────┘
-                             │
-              ┌──────────────┴──────────────┐
-              ▼                              ▼
-   ┌─────────────────────┐      ┌─────────────────────┐
-   │ 4. Facility-Matching │      │ 5. Medicine          │
-   │    RAG Agent         │      │    Availability Agent│
-   └───────────┬─────────┘      └───────────┬─────────┘
-               └──────────────┬─────────────┘
-                               ▼
-                  ┌─────────────────────────┐
-                  │ 6. Supervisor Agent      │
-                  │    (Response Synthesis,  │
-                  │    Urdu Text + Voice)    │
-                  └─────────────────────────┘
+Symptom Intake (LLM + regex fallback)
+        │
+        ▼
+Safety Escalation (rule-based)
+       ├── Emergency → emergency-marked response (downstream stages skipped)
+        └── No emergency
+               │
+               ▼
+        Triage Reasoning (LLM + RAG)
+               │
+               ▼
+        Facility Matching
+               │
+               ▼
+        Medicine Availability
+               │
+               ▼
+        Response (Urdu text + optional audio)
 ```
 
-## Technology Stack
+Facility matching and medicine availability run sequentially, and both are skipped for an emergency short-circuit.
+
+## Current Prototype Stack
 
 | Layer | Technology |
 |---|---|
-| Agent Orchestration | LangGraph |
-| LLM Reasoning | Qwen-Max / Qwen-Plus (Alibaba Model Studio) |
-| Speech (ASR/TTS) | Alibaba Intelligent Speech Interaction (Urdu) |
-| Vector Retrieval | FAISS |
-| Database | PolarDB / PostgreSQL |
+| LLM | Groq, `llama-3.3-70b-versatile`, through an OpenAI-compatible client |
+| ASR | Groq `whisper-large-v3` |
+| TTS | gTTS |
+| Embeddings and vector search | sentence-transformers `paraphrase-multilingual-MiniLM-L12-v2` + FAISS |
+| Agent orchestration | LangGraph |
 | Backend API | FastAPI (Python) |
-| Frontend | React (TypeScript) |
-| Containerization | Docker |
-| Compute Hosting | Alibaba Cloud ECS / PAI-EAS |
-| Delivery Channel | WhatsApp Business API |
+| Frontend | React + TypeScript web app with a voice recorder |
+| Facility and medicine data | JSON files loaded into in-memory stores |
+| Local containerization | Docker |
+
+## Target Production Architecture (Roadmap)
+
+These are proposed production targets, not integrations implemented by the current prototype:
+
+- Qwen through Alibaba Model Studio for LLM reasoning.
+- Alibaba Speech for speech services.
+- PAI-EAS for model serving and ECS for application compute.
+- PolarDB for structured production data.
+- WhatsApp Business API as a patient delivery channel.
 
 ## Quick Start
 
@@ -76,20 +74,19 @@ Patient Input (Urdu Voice/Text via WhatsApp)
 - Docker & Docker Compose
 - Python 3.11+
 - Node.js 20+
-- Alibaba Cloud account with Model Studio access
+- Network access and a Groq API key for hosted LLM and speech recognition calls
 
 ### Local Development
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-org/rahbar-e-sehat.git
-cd rahbar-e-sehat
+git clone https://github.com/hassanzzzj/Rahbar_e_Sehat
+cd Rahbar_e_Sehat
 ```
 
-2. Copy environment template:
+2. Configure the required environment variables for the backend (see below).
 ```bash
-cp .env.example .env
-# Edit .env with your API keys and configuration
+# Set GROQ_API_KEY and the required application/database/security settings.
 ```
 
 3. Start development environment:
@@ -126,13 +123,27 @@ npm run dev
 
 ## Environment Variables
 
-See `.env.example` for all required environment variables. Key variables:
+The backend reads settings from its environment (and `.env` when present). Key variables:
 
 - `SECRET_KEY` - Application secret key (32+ characters)
 - `DATABASE_URL` - PostgreSQL connection string
-- `QWEN_API_KEY` - Alibaba Cloud Model Studio API key
-- `WHATSAPP_API_TOKEN` - WhatsApp Business API token
+- `GROQ_API_KEY` - Groq API key for LLM and Whisper requests
 - `ENCRYPTION_KEY` - Field-level encryption key (32 bytes)
+- `JWT_SECRET_KEY` - Secret used to sign anonymous session tokens
+
+The Groq model defaults to `llama-3.3-70b-versatile`; the transcription model defaults to `whisper-large-v3`.
+
+## Data
+
+The bundled pilot/sample dataset contains 17 facilities in `backend/data/facilities.json`, 77 medicine records covering 13 facilities in `backend/data/medicines.json`, and five clinical protocol documents in `backend/data/protocols/`. This is sample data, not a live or comprehensive directory or inventory.
+
+## Known Limitations
+
+- Safety rules do not handle negation; when other conditions for a rule match, “no arm pain” can still satisfy its arm-pain phrase check.
+- Medicine inventory is static sample data and is not synchronized with facilities.
+- LLM, speech recognition, and speech synthesis depend on third-party services; network access is required for triage and voice workflows.
+- There is no offline triage or transcription mode.
+- The prototype has not undergone formal clinical validation.
 
 ## Project Structure
 
@@ -180,9 +191,9 @@ make prod
 # Or: docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
-### Alibaba Cloud Deployment
+### Production Deployment Roadmap
 
-See `docs/architecture.md` and `infra/alibaba-cloud/` for detailed deployment instructions.
+Alibaba Cloud ECS, PAI-EAS, PolarDB, Alibaba Speech, and WhatsApp Business API are roadmap targets. They are not presented as deployed integrations in this prototype; see `docs/architecture.md`.
 
 ## Security
 

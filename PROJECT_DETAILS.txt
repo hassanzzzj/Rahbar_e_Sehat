@@ -1,0 +1,402 @@
+================================================================================
+RAHBAR-E-SEHAT — PROJECT DETAILS
+"Har Bemaar Ka Sahi Rasta" (ہر بیمار کا صحی راستہ) — "The Right Path for Every Patient"
+================================================================================
+
+--------------------------------------------------------------------------------
+1. WHAT THIS PROJECT IS
+--------------------------------------------------------------------------------
+Rahbar-e-Sehat is an AI-assisted healthcare triage and referral system built for
+Pakistan's healthcare context. It is NOT a diagnostic tool. It takes a patient's
+description of their symptoms (typed or spoken, in English/Urdu/Roman Urdu),
+classifies the urgency of the case, checks for medical emergencies, recommends
+the nearest appropriate healthcare facility (BHU / RHC / THQ / DHQ / Tertiary /
+Emergency), and checks medicine availability at that facility — then reads the
+response back to the patient in Urdu using text-to-speech.
+
+Core promise: help patients in Pakistan quickly figure out (a) how urgent their
+condition is, (b) where the nearest facility that can treat them is, and (c)
+whether that facility has the required medicine — all through a low-friction,
+voice-first, bilingual web interface.
+
+--------------------------------------------------------------------------------
+2. ARCHITECTURE OVERVIEW
+--------------------------------------------------------------------------------
+Two independent services:
+
+  frontend/   React + TypeScript + Vite SPA (port 5173 in dev)
+  backend/    FastAPI (Python) REST API (port 8000)
+
+They communicate over HTTP/JSON. The backend orchestrates a multi-agent
+pipeline (LangGraph-based) built from deterministic rule engines + one LLM
+call for symptom extraction/classification. No agent step requires a database
+write in the hot path; facility/medicine data is loaded from local JSON files
+into memory.
+
+--------------------------------------------------------------------------------
+3. BACKEND — MULTI-AGENT PIPELINE (backend/app/agents/)
+--------------------------------------------------------------------------------
+Orchestrated by a LangGraph workflow (graph.py) under a SupervisorAgent
+(supervisor_agent.py). Flow for a POST /api/v1/triage request:
+
+  1. Symptom Intake Agent (intake_agent.py)
+     - Uses the Groq LLM to extract structured symptoms from free-text patient
+       message (severity, duration, age group, pregnancy status, symptom list).
+
+  2. Safety Escalation Agent (safety_escalation_agent.py)
+     - Deterministic rule engine (NOT LLM-based) that checks extracted symptoms
+       against a hardcoded list of red-flag/emergency conditions (e.g. chest
+       pain, difficulty breathing, severe bleeding) to set is_emergency=True
+       and force URGENT/EMERGENCY classification when triggered. This is the
+       safety-critical layer — deliberately deterministic so it can't be
+       "talked out of" an emergency call by a bad LLM response.
+
+  3. Triage Reasoning Agent (triage_reasoning_agent.py)
+     - Combines LLM reasoning with a RAG knowledge base (backend/app/rag/) to
+       classify urgency into ROUTINE / URGENT / EMERGENCY, with a deterministic
+       fallback rule engine if the LLM call fails or returns malformed output
+       ("Deterministic fallback: severity=..., emergency_flag=..., ... Assigned
+       URGENT to avoid under-triage" — biased to over-triage, never under-triage).
+
+  4. Facility Matching Agent (facility_matching_agent.py)
+     - Pure deterministic geo-distance matching. Uses the Haversine formula
+       (haversine_km function) to find the nearest facility from a 17-record
+       in-memory dataset (backend/data/facilities.json) that can handle the
+       recommended care tier, sorted by distance, filtered by max radius
+       (default 50 km).
+
+  5. Medicine Availability Agent (medicine_availability_agent.py)
+     - Checks whether medicines relevant to the diagnosis are in stock at the
+       recommended facility, from backend/data/medicines.json (77 records
+       across 13 facilities).
+
+  6. Speech synthesis (via SupervisorAgent.build_triage_response)
+     - Translates/echoes the patient-facing response text in Urdu and
+       synthesizes it to speech using gTTS, returned as a base64 data URI
+       (data:audio/mpeg;base64,...) so the frontend can play it directly with
+       no extra network round-trip.
+
+--------------------------------------------------------------------------------
+4. BACKEND — API ROUTES (backend/app/api/routes/)
+--------------------------------------------------------------------------------
+All routes are mounted under prefix /api/v1 (configurable via API_PREFIX env var).
+
+  POST /api/v1/triage           (triage.py)
+      Body: { "patient_message": "<free text>" }
+      Runs the full agent pipeline above. Returns urgency, is_emergency,
+      recommended_facility, medicine_status, patient_message_urdu, audio_url,
+      reasoning_trace, session_id.
+
+  POST /api/v1/facilities/search (facilities.py)
+      Body: { "latitude": float, "longitude": float, "facility_type"?: str,
+               "max_distance_km"?: float (default 50) }
+      Returns nearby facilities sorted by distance with contact numbers.
+
+  GET  /api/v1/facilities/{facility_id} (facilities.py)
+      Returns details for a single facility.
+
+  POST /api/v1/transcribe        (speech.py)
+      Multipart form: file=<audio blob>, language="ur"
+      Transcribes recorded voice input to text via Groq's Whisper API.
+      Returns { text: "<transcribed text>" }.
+
+  GET  /api/v1/session/...       (session.py)
+      Issues/manages anonymous session tokens (no PII, no login required).
+
+  GET  /api/v1/admin/...         (admin.py)
+      Basic usage stats endpoint for the Admin dashboard page.
+
+  GET  /health  (or similar)     (health.py)
+      Liveness/readiness check.
+
+--------------------------------------------------------------------------------
+5. BACKEND — SUPPORTING MODULES
+--------------------------------------------------------------------------------
+  app/config.py            Centralized pydantic-settings config, reads from
+                            backend/.env. Includes app/API/DB settings, Groq
+                            API settings, facility/medicine data paths, CORS
+                            origins, rate limiting, JWT/encryption secrets.
+
+  app/integrations/llm_client.py
+                            Thin OpenAI-compatible client pointed at Groq's
+                            REST API (https://api.groq.com/openai/v1) for
+                            chat completions. Model: llama-3.3-70b-versatile
+                            (configurable).
+
+  app/integrations/speech_client.py
+                            - transcribe_audio(): calls Groq's Whisper API
+                              (whisper-large-v3) for speech-to-text.
+                            - synthesize_speech(): uses gTTS (local Python
+                              library, free, no API key) for Urdu
+                              text-to-speech, run in a thread executor since
+                              gTTS's network call is synchronous. Has retry
+                              logic since gTTS still hits Google Translate's
+                              TTS endpoint over the network internally.
+
+  app/rag/                  Retrieval-augmented generation support: vector
+                            store (FAISS, currently unavailable/optional —
+                            falls back gracefully), embeddings, ingestion,
+                            and retriever for the Triage Reasoning Agent's
+                            knowledge base and for facility/medicine lookups.
+
+  app/core/                 Cross-cutting concerns: structured logging
+                            (structlog), custom exceptions per domain
+                            (FacilityMatchingError, MedicineAvailabilityError,
+                            SpeechServiceError, etc.), rate limiting, security
+                            (JWT/encryption helpers).
+
+  app/models/schemas.py     Pydantic request/response schemas shared across
+                            routes (FacilitySearchRequest, TriageResponse,
+                            TranscribeResponse, APIResponse envelope, etc.)
+                            All API responses use a uniform envelope:
+                            { success: bool, data: <T> | null,
+                              error: { code, message } | null }
+
+  app/models/db_models.py   SQLAlchemy models (e.g. MedicineInventory) — DB
+                            layer exists but the hot-path triage/facility
+                            flows currently run off in-memory JSON stores,
+                            not the DB, for simplicity/speed.
+
+  app/main.py               FastAPI app factory. Wires up all agents,
+                            facility/medicine stores (loaded once at startup
+                            from backend/data/*.json via settings paths),
+                            CORS middleware (reads app/config.py's
+                            cors_origins), and registers all routers.
+
+--------------------------------------------------------------------------------
+6. FRONTEND — PAGES (frontend/src/pages/)
+--------------------------------------------------------------------------------
+  HomePage.tsx        Landing page: hero CTA, "How it works" 3-step explainer,
+                      system capability feature cards, emergency banner with
+                      tel:1122 / tel:115 links.
+
+  TriagePage.tsx      Main triage flow. 3-step progress indicator
+                      (Describe -> Analysing -> Result). Symptom textarea
+                      (bilingual placeholder), voice recording button
+                      (records audio, sends to /transcribe, appends
+                      transcribed text into the textarea), "Analyse symptoms"
+                      submit button (POST /triage), and a result card showing
+                      urgency badge, emergency alert (role="alert" for
+                      accessibility) with tel:1122 link, clinical reasoning
+                      trace, Urdu response text + playable <audio> element,
+                      recommended facility with tel: contact link, and
+                      medicine availability breakdown.
+
+  FacilitiesPage.tsx  Standalone nearby-facility search. "Use my GPS
+                      location" button (browser geolocation) or manual
+                      lat/lng entry, "Search" button (POST /facilities/search),
+                      results list with distance, facility type badge,
+                      services, and tel: contact link per facility.
+
+  AdminPage.tsx       Basic stats dashboard (loading skeleton + summary data
+                      from the admin API).
+
+  NotFoundPage.tsx    404 fallback.
+
+--------------------------------------------------------------------------------
+7. FRONTEND — SHARED COMPONENTS (frontend/src/components/)
+--------------------------------------------------------------------------------
+  layout/SiteHeader.tsx   Sticky top nav: logo/brand (bilingual), nav links
+                          (Home/Triage/Facilities/Admin), desktop + mobile
+                          "Emergency? 1122" tel:1122 call button, mobile
+                          hamburger menu.
+
+  layout/SiteFooter.tsx   Trust badges (not-a-diagnostic-tool disclaimer,
+                          tel:1122 emergency link, 24/7 availability), bottom
+                          bar with bilingual copyright.
+
+  layout/AppLayout.tsx    Shared page shell (header + outlet + footer),
+                          wraps ErrorBoundary/OfflineBanner.
+
+  common/ErrorBoundary.tsx, OfflineBanner.tsx, SkeletonPage.tsx
+                          App-wide resilience/UX helpers (offline detection,
+                          error fallback UI, loading skeletons).
+
+  ui/Button.tsx, Card.tsx, Input.tsx, UrgencyBadge.tsx, VoiceRecorder.tsx
+                          Design-system primitives. UrgencyBadge renders
+                          ROUTINE/URGENT/EMERGENCY with inline color coding.
+                          VoiceRecorder wraps the MediaRecorder browser API
+                          via the useVoiceRecorder hook.
+
+--------------------------------------------------------------------------------
+8. FRONTEND — SUPPORTING CODE
+--------------------------------------------------------------------------------
+  lib/api-client.ts   Thin fetch wrapper. Exports API_BASE_URL (from
+                      VITE_API_BASE_URL env var, defaults to
+                      http://localhost:8000/api/v1), api.get/api.post helpers,
+                      and ApiClientError class. Uses an AbortController with a
+                      45-second client-side timeout (raised from an original
+                      15s — the real Groq-backed triage pipeline takes
+                      ~18-19s end-to-end, which was exceeding the old timeout
+                      and causing false "Unable to reach the triage service"
+                      errors even when the backend was healthy).
+
+  lib/design-tokens.ts  Shared color/spacing/typography constants for the
+                        design system (warm neutral palette: cream
+                        background #F9F8F6, forest green primary #357A53,
+                        emergency red #B52D24).
+
+  hooks/useVoiceRecorder.ts, useNetworkStatus.ts, useDebounce.ts
+                        Voice recording state machine, online/offline
+                        detection, input debouncing.
+
+  types/api.ts          TypeScript types mirroring backend Pydantic schemas
+                        (TriageResponse, FacilityInfo, TranscribeResponse,
+                        APIResponse<T> envelope, etc.)
+
+--------------------------------------------------------------------------------
+9. AI / EXTERNAL SERVICE INTEGRATIONS
+--------------------------------------------------------------------------------
+  Groq (https://console.groq.com)
+    - Free-tier, OpenAI-compatible REST API.
+    - Used for: (a) LLM chat completions (symptom extraction + triage
+      reasoning), model llama-3.3-70b-versatile; (b) Whisper speech-to-text
+      transcription, model whisper-large-v3.
+    - Requires GROQ_API_KEY in backend/.env (a real key is currently
+      configured).
+
+  gTTS (Google Text-to-Speech Python library)
+    - Free, local, no API key required.
+    - Used for Urdu text-to-speech synthesis of the patient-facing response.
+    - Note: internally it still calls out to Google Translate's TTS endpoint
+      over the network, so it needs internet access and has retry logic for
+      transient failures, but requires zero account/key setup.
+
+  (Previously targeted but replaced) Self-hosted Qwen via vLLM, self-hosted
+  Whisper ASR server, and MMS-TTS server — all required local GPU
+  infrastructure that was never actually running, which is why the project
+  was migrated to Groq + gTTS (both free, hosted/local, no infra to manage).
+
+--------------------------------------------------------------------------------
+10. DATA FILES
+--------------------------------------------------------------------------------
+  backend/data/facilities.json   17 healthcare facilities across Pakistan
+                                  (Lahore, Islamabad, Karachi, Peshawar),
+                                  each with facility_id, name, facility_type
+                                  (BHU/RHC/THQ/DHQ/TERTIARY/EMERGENCY),
+                                  address, latitude/longitude, services,
+                                  emergency_capable flag, phone_number.
+
+  backend/data/medicines.json    77 medicine inventory records across 13 of
+                                  those facilities (medicine name, quantity/
+                                  availability per facility).
+
+  Facility care-tier hierarchy (used by Facility Matching Agent to decide
+  which facility types can handle a given recommended tier):
+    BHU (1) < RHC (2) < THQ (3) < DHQ (4) < TERTIARY (5) = EMERGENCY (5)
+
+--------------------------------------------------------------------------------
+11. ENVIRONMENT CONFIGURATION
+--------------------------------------------------------------------------------
+  backend/.env (key variables):
+    GROQ_API_KEY=<real key configured>
+    GROQ_MODEL_NAME=llama-3.3-70b-versatile
+    GROQ_WHISPER_MODEL_NAME=whisper-large-v3
+    FACILITY_DATA_PATH=./data/facilities.json
+    MEDICINE_DATA_PATH=./data/medicines.json
+    CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+    (plus DB URL, JWT/encryption secrets, rate limit settings)
+
+  frontend/.env (key variables):
+    VITE_API_BASE_URL=http://localhost:8000/api/v1
+    VITE_MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+    VITE_MAP_DEFAULT_CENTER=33.6844,73.0479   (Islamabad)
+    VITE_MAP_DEFAULT_ZOOM=6
+    VITE_ENABLE_VOICE_INPUT=true
+    VITE_ENABLE_URDU_UI=true
+    VITE_SENTRY_DSN=  (empty — not configured)
+
+--------------------------------------------------------------------------------
+12. HOW TO RUN LOCALLY (DEV, NO DOCKER)
+--------------------------------------------------------------------------------
+  Backend:
+    cd backend
+    pip install -r requirements.txt
+    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  Frontend:
+    cd frontend
+    npm install
+    npm run dev
+    -> served at http://localhost:5173
+
+  Docker (alternative): docker-compose up -d from the project root (requires
+  Docker Desktop running first).
+
+--------------------------------------------------------------------------------
+13. TESTING
+--------------------------------------------------------------------------------
+  Backend:  cd backend && python -m pytest tests/ -v
+            218 tests passing. Includes unit tests per agent, contract tests
+            for llm_client/speech_client, end-to-end workflow tests for the
+            LangGraph supervisor pipeline, and route-level tests
+            (test_speech_route.py, etc.)
+
+  Frontend: cd frontend && npx vitest run
+            64 tests passing across components, pages, and hooks.
+            cd frontend && npx tsc --noEmit   (type-check, clean)
+
+--------------------------------------------------------------------------------
+14. KNOWN BUGS FOUND AND FIXED DURING DEVELOPMENT
+--------------------------------------------------------------------------------
+  a) Missing /transcribe route — voice input always 404'd. Fixed by adding
+     backend/app/api/routes/speech.py.
+
+  b) build_triage_response() called asyncio.get_event_loop().run_until_
+     complete(...) from inside an already-running event loop, raising a
+     RuntimeError that was silently swallowed — so TTS audio_url was always
+     None. Fixed by making the method properly async and awaiting
+     synthesize_speech() directly.
+
+  c) Frontend env var mismatch: TriagePage.tsx read VITE_API_URL but only
+     VITE_API_BASE_URL was defined outside Docker. Consolidated on
+     VITE_API_BASE_URL everywhere, with API_BASE_URL exported from
+     api-client.ts as the single source of truth.
+
+  d) Missing role="alert" on the emergency-detected banner in TriagePage.tsx
+     — a real accessibility bug (screen readers wouldn't announce it).
+     Fixed.
+
+  e) /facilities/search always returned zero results regardless of location.
+     Root cause: the route's get_facility_store() created a fresh
+     InMemoryFacilityStore() but never called load_from_file() on it (unlike
+     the separate store instance wired into app.state in main.py for the
+     triage pipeline's Facility Matching Agent). Fixed by loading it from
+     settings.facility_data_path.
+
+  f) Triage requests intermittently/always failed in the browser with
+     "Unable to reach the triage service" even though the backend was
+     healthy. Root cause: the real Groq-backed multi-agent pipeline takes
+     ~18-19 seconds end-to-end, but the frontend's fetch wrapper aborted
+     requests after a hardcoded 15-second client-side timeout. Fixed by
+     raising the timeout to 45 seconds in frontend/src/lib/api-client.ts.
+
+  g) Emergency phone numbers (1122, 115) were rendered as plain, non-
+     interactive text throughout the site (SiteHeader, SiteFooter,
+     TriagePage, HomePage). Fixed by converting all of them to tel: links
+     so mobile users can tap-to-call directly.
+
+--------------------------------------------------------------------------------
+15. SAFETY / PRODUCT PRINCIPLES
+--------------------------------------------------------------------------------
+  - This is explicitly NOT a diagnostic tool — disclaimed throughout the UI.
+  - Emergency detection is deterministic (rule-based), not solely LLM-based,
+    so a hallucinating LLM cannot suppress a true emergency signal.
+  - Triage classification is biased to over-triage rather than under-triage
+    when uncertain (deterministic fallback explicitly assigns URGENT rather
+    than ROUTINE on ambiguous/failed LLM classification).
+  - No login/PII required — anonymous session tokens only.
+  - Bilingual by design (English / Urdu / Roman Urdu input, Urdu voice
+    output) to match the target population's actual language use.
+
+--------------------------------------------------------------------------------
+16. POTENTIAL FUTURE WORK (discussed, not yet implemented)
+--------------------------------------------------------------------------------
+  - Broader/live nearby-facility search beyond the current static 17-facility
+    dataset — e.g. Google Places API (paid beyond free tier) or OpenStreetMap
+    Overpass API (free) or simple Google Maps "get directions" deep-links.
+  - CORS_ORIGINS code-level default is narrower (only localhost:3000) than
+    what's actually needed for local Vite dev (localhost:5173) — currently
+    fine because backend/.env overrides it, but .env.example doesn't include
+    this key, so a fresh setup from .env.example alone would hit CORS errors.
+================================================================================
